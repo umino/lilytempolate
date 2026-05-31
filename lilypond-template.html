@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LilyPond テンプレート生成</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#0f1117;color:#c9d1d9;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+a{color:#58a6ff}
+input,select,textarea{background:#161b22;color:#c9d1d9;border:1px solid #30363d;border-radius:6px;padding:5px 8px;font-size:13px;outline:none}
+input:focus,select:focus{border-color:#58a6ff}
+button{cursor:pointer;border:none;border-radius:6px;padding:5px 12px;font-size:13px;font-weight:500}
+.btn-primary{background:#238636;color:#fff}
+.btn-primary:hover{background:#2ea043}
+.btn-secondary{background:#21262d;color:#c9d1d9;border:1px solid #30363d}
+.btn-secondary:hover{background:#30363d}
+.btn-danger{background:transparent;color:#f85149;border:1px solid #f85149;padding:2px 8px;font-size:12px}
+.btn-danger:hover{background:#f8514920}
+.btn-small{padding:3px 8px;font-size:12px}
+
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0}
+header h1{font-size:16px;font-weight:600;color:#f0f6fc}
+.header-actions{display:flex;gap:8px;align-items:center}
+
+.main{display:flex;flex:1;overflow:hidden;min-height:0}
+
+/* Settings panel */
+.settings{width:380px;flex-shrink:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;border-right:1px solid #30363d;min-height:0}
+.section-box{background:#161b22;border:1px solid #30363d;border-radius:8px;overflow:hidden;flex-shrink:0}
+.section-box h3{font-size:12px;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.5px;padding:8px 12px;background:#21262d;border-bottom:1px solid #30363d}
+.section-body{padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.field-row{display:flex;align-items:center;gap:8px}
+.field-row label{font-size:12px;color:#8b949e;white-space:nowrap;min-width:80px}
+.field-row input,.field-row select{flex:1}
+.field-row input[type=number]{width:70px;flex:none}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* Instruments */
+.inst-list{display:flex;flex-direction:column;gap:4px}
+.inst-item{display:flex;align-items:center;gap:6px;background:#21262d;border:1px solid #30363d;border-radius:6px;padding:6px 8px}
+.inst-item .inst-name{flex:1;font-size:13px}
+.inst-item input[type=text]{font-size:12px;padding:3px 6px;width:120px}
+.inst-item .inst-abbr{font-size:11px;color:#8b949e;width:50px}
+.drag-handle{cursor:grab;color:#8b949e;font-size:14px;user-select:none}
+.add-inst-row{display:flex;gap:6px;align-items:center;margin-top:4px}
+.add-inst-row select{flex:1}
+
+/* Sections */
+.section-list{display:flex;flex-direction:column;gap:6px}
+.sec-item{background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden}
+.sec-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#161b22}
+.sec-header input[type=text]{width:60px;font-size:12px;padding:2px 6px}
+.sec-header .bars-input{width:55px}
+.sec-header span{font-size:11px;color:#8b949e}
+.sec-insts{display:flex;flex-wrap:wrap;gap:4px;padding:6px 10px}
+.sec-inst-chip{display:flex;align-items:center;gap:4px;font-size:11px;padding:2px 8px;border-radius:12px;cursor:pointer;border:1px solid #30363d;background:#0f1117;user-select:none;transition:all .1s}
+.sec-inst-chip.active{background:#1f6feb;border-color:#388bfd;color:#fff}
+.sec-inst-chip.active-rh{background:#388bfd30;border-color:#388bfd}
+
+/* Code panel */
+.code-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.code-toolbar{display:flex;align-items:center;justify-content:space-between;padding:0 12px 0 0;background:#161b22;border-bottom:1px solid #30363d;flex-shrink:0;gap:8px}
+#codeOutput{flex:1;min-height:0;overflow:auto;padding:14px 16px;font-family:'JetBrains Mono','Fira Code','Cascadia Code',monospace;font-size:12.5px;line-height:1.6;tab-size:2;white-space:pre;color:#c9d1d9;margin:0;background:#0f1117;border:none;outline:none;resize:none;display:block;width:100%}
+.dirty-banner{display:none;flex-shrink:0;padding:5px 12px;background:#4a3800;border-bottom:1px solid #7a5c00;font-size:12px;color:#e3b341;align-items:center;justify-content:space-between;gap:8px}
+.dirty-banner button{background:#e3b341;color:#1a1a00;border:none;border-radius:4px;padding:2px 10px;font-size:11px;font-weight:600;cursor:pointer}
+/* Tabs */
+.tab-bar{display:flex}
+.tab{background:transparent;color:#8b949e;border:none;border-bottom:2px solid transparent;padding:8px 16px;font-size:13px;font-weight:500;cursor:pointer;border-radius:0;transition:color .1s}
+.tab.active{color:#c9d1d9;border-bottom-color:#388bfd}
+.tab:hover:not(.active){color:#c9d1d9}
+/* Preview */
+.preview-pane{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;background:#0f1117}
+.preview-svg{background:#fff;border-radius:4px;box-shadow:0 2px 12px #0009}
+.preview-svg svg{width:100%!important;height:auto!important;display:block}
+.error-box{background:#160d10;border:1px solid #f8514950;border-radius:6px;padding:10px 14px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#ffa198;white-space:pre-wrap;line-height:1.6}
+.server-dot{width:7px;height:7px;border-radius:50%;display:inline-block;vertical-align:middle;margin-right:4px;background:#555;transition:background .3s}
+.server-dot.ok{background:#3fb950}
+.server-dot.ng{background:#f85149}
+
+/* Token colors */
+.lp-comment{color:#8b949e;font-style:italic}
+.lp-keyword{color:#ff7b72}
+.lp-string{color:#a5d6ff}
+.lp-variable{color:#d2a8ff}
+.lp-section{color:#ffa657}
+.lp-cmd{color:#79c0ff}
+
+.toast{position:fixed;bottom:20px;right:20px;background:#238636;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:100}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <h1>LilyPond テンプレート生成</h1>
+  <div class="header-actions">
+    <button class="btn-secondary btn-small" onclick="downloadFile()">ダウンロード (.ly)</button>
+    <button class="btn-primary btn-small" onclick="copyCode()">コピー</button>
+  </div>
+</header>
+<div class="main">
+  <div class="settings" id="settings"></div>
+  <div class="code-panel">
+    <div class="code-toolbar">
+      <div class="tab-bar">
+        <button class="tab active" id="tabCode" onclick="switchTab('code')">コード</button>
+        <button class="tab" id="tabPreview" onclick="switchTab('preview')">プレビュー</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex:1;justify-content:flex-end">
+        <span style="font-size:11px;color:#8b949e;white-space:nowrap">
+          <span class="server-dot" id="serverDot"></span><span id="serverLabel">確認中...</span>
+        </span>
+        <button class="btn-primary btn-small" id="compileBtn" onclick="compile()">▶ コンパイル</button>
+        <span id="codeStats" style="font-size:12px;color:#8b949e;white-space:nowrap"></span>
+      </div>
+    </div>
+    <div class="dirty-banner" id="dirtyBanner">
+      <span>⚠ 手動編集中 — 設定を変更しても自動更新されません</span>
+      <button onclick="regenerate()">設定から再生成</button>
+    </div>
+    <textarea id="codeOutput" spellcheck="false" autocorrect="off" autocapitalize="off"></textarea>
+    <div id="previewPane" class="preview-pane" style="display:none">
+      <div id="previewErrors"></div>
+      <div id="previewSvgs"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// CONSTANTS
+// ============================================================
+const KEY_OPTIONS = [
+  {v:"c",   l:"C / Am"},  {v:"g",   l:"G / Em"},  {v:"d",   l:"D / Bm"},
+  {v:"a",   l:"A / F♯m"}, {v:"e",   l:"E / C♯m"}, {v:"b",   l:"B / G♯m"},
+  {v:"fis", l:"F♯ / D♯m"},{v:"cis", l:"C♯ / A♯m"},{v:"f",   l:"F / Dm"},
+  {v:"bes", l:"B♭ / Gm"}, {v:"ees", l:"E♭ / Cm"}, {v:"aes", l:"A♭ / Fm"},
+  {v:"des", l:"D♭ / B♭m"},{v:"ges", l:"G♭ / E♭m"},{v:"ces", l:"C♭ / A♭m"},
+];
+
+const INST_PRESETS = [
+  {sep:"フォルクローレ（アンデス）"},
+  {n:"Quena",       c:"treble",   v:"quena",      a:"Qna."},
+  {n:"Quena II",    c:"treble",   v:"quenaII",    a:"Qna.2"},
+  {n:"Quenacho",    c:"treble",   v:"quenacho",   a:"Qcho."},
+  {n:"Zampona (Siku)", c:"treble",v:"zampona",    a:"Zmp."},
+  {n:"Tarka",       c:"treble",   v:"tarka",      a:"Tka."},
+  {n:"Pinkillo",    c:"treble",   v:"pinkillo",   a:"Pnk."},
+  {n:"Charango",    c:"treble",   v:"charango",   a:"Chg."},
+  {n:"Guitarra",    c:"tenor",    v:"guitarra",   a:"Git."},
+  {n:"Arpa andina", c:"grand",    v:"arpa",       a:"Arp.", grand:true},
+  {n:"Bombo leguero",c:"bass",    v:"bombo",      a:"Bom."},
+  {n:"Caja",        c:"percussion",v:"caja",      a:"Caja"},
+  {n:"Cajon",       c:"percussion",v:"cajon",     a:"Cajn"},
+  {sep:"弦楽器"},
+  {n:"Violin I",    c:"treble",   v:"violinI",    a:"Vln.I"},
+  {n:"Violin II",   c:"treble",   v:"violinII",   a:"Vln.II"},
+  {n:"Viola",       c:"alto",     v:"viola",      a:"Vla."},
+  {n:"Cello",       c:"bass",     v:"cello",      a:"Vc."},
+  {n:"Contrabass",  c:"bass",     v:"contrabass", a:"Cb."},
+  {sep:"木管楽器"},
+  {n:"Flute",       c:"treble",   v:"flute",      a:"Fl."},
+  {n:"Oboe",        c:"treble",   v:"oboe",       a:"Ob."},
+  {n:"Cl. in Bb",   c:"treble",   v:"clarinet",   a:"Cl.",  trans:"bes"},
+  {n:"Bassoon",     c:"bass",     v:"bassoon",    a:"Bsn."},
+  {sep:"金管楽器"},
+  {n:"Horn in F",   c:"treble",   v:"horn",       a:"Hn.",  trans:"f"},
+  {n:"Trumpet Bb",  c:"treble",   v:"trumpet",    a:"Tpt.", trans:"bes"},
+  {n:"Trombone",    c:"bass",     v:"trombone",   a:"Tbn."},
+  {n:"Tuba",        c:"bass",     v:"tuba",       a:"Tba."},
+  {sep:"鍵盤・ハープ"},
+  {n:"Piano",       c:"grand",    v:"piano",      a:"Pno.", grand:true},
+  {n:"Organ",       c:"grand",    v:"organ",      a:"Org.", grand:true},
+  {n:"Harp",        c:"grand",    v:"harp",       a:"Hp.",  grand:true},
+  {sep:"打楽器"},
+  {n:"Timpani",     c:"bass",     v:"timpani",    a:"Timp."},
+  {n:"Percussion",  c:"percussion",v:"perc",      a:"Perc."},
+  {sep:"声楽"},
+  {n:"Soprano",     c:"treble",   v:"soprano",    a:"S."},
+  {n:"Alto",        c:"treble",   v:"alto",       a:"A."},
+  {n:"Tenor",       c:"tenor",    v:"tenor",      a:"T."},
+  {n:"Bass Voice",  c:"bass",     v:"bassVoice",  a:"B."},
+  {sep:"その他"},
+  {n:"Custom",      c:"treble",   v:"custom",     a:"?",    custom:true},
+];
+
+const CLEF_REL = {
+  treble:"c''", alto:"c'", tenor:"c'", bass:"c,",
+  percussion:"c", grand:"c''"
+};
+
+const MEASURE_DUR = {
+  "4/4":"1","2/2":"1","3/4":"2.","2/4":"2","6/8":"2.","3/8":"4.",
+  "9/8":"2.","12/8":"1","3/2":"1.","6/4":"1.","5/4":null,"7/8":null
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let uid = 1;
+const newId = () => uid++;
+
+let S = {
+  title: "無題",
+  composer: "",
+  lilyVersion: "2.20.0",
+  keyNote: "c",
+  keyMode: "major",
+  timeNum: 4,
+  timeDen: 4,
+  tempoText: "Moderato",
+  tempoUnit: 4,
+  tempoBpm: 100,
+  instruments: [],
+  sections: [],
+  removeEmpty: true,
+  removeFirst: false,
+};
+
+function addInstrument(preset) {
+  S.instruments.push({
+    id: newId(),
+    name: preset.n,
+    abbr: preset.a,
+    clef: preset.c,
+    varBase: preset.v,
+    trans: preset.trans || null,
+    grand: preset.grand || false,
+    custom: preset.custom || false,
+  });
+  // Add to all existing sections by default
+  S.sections.forEach(sec => sec.insts.add(S.instruments[S.instruments.length-1].id));
+  render();
+}
+
+function removeInstrument(id) {
+  S.instruments = S.instruments.filter(i => i.id !== id);
+  S.sections.forEach(sec => sec.insts.delete(id));
+  render();
+}
+
+function addSection() {
+  const idx = S.sections.length;
+  const names = ["A","B","C","D","E","F","G","H","I","J"];
+  S.sections.push({
+    id: newId(),
+    name: names[idx % names.length] || String(idx+1),
+    bars: 8,
+    insts: new Set(S.instruments.map(i => i.id)),
+  });
+  render();
+}
+
+function removeSection(id) {
+  S.sections = S.sections.filter(s => s.id !== id);
+  render();
+}
+
+function toggleInstInSection(secId, instId) {
+  const sec = S.sections.find(s => s.id === secId);
+  if (!sec) return;
+  if (sec.insts.has(instId)) sec.insts.delete(instId);
+  else sec.insts.add(instId);
+  render();
+}
+
+// ============================================================
+// LILYPOND GENERATION
+// ============================================================
+function varName(inst) {
+  // LilyPond variable names must be letters only — no digits.
+  // When multiple instruments share the same base, append A/B/C/...
+  const sameBase = S.instruments.filter(i => i.varBase === inst.varBase);
+  if (sameBase.length <= 1) return inst.varBase;
+  const idx = sameBase.findIndex(i => i.id === inst.id);
+  return inst.varBase + String.fromCharCode(65 + idx); // A, B, C, ...
+}
+
+function getMeasureDur(num, den) {
+  return MEASURE_DUR[`${num}/${den}`] || "1";
+}
+
+function escQ(s) {
+  return s.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+}
+
+function clefStr(clef) {
+  if (clef === "treble") return "treble";
+  if (clef === "tenor")  return "\\clef \"tenor\"";
+  if (clef === "alto")   return "\\clef \"alto\"";
+  if (clef === "bass")   return "bass";
+  if (clef === "percussion") return "percussion";
+  return "treble";
+}
+
+function generateMusicVar(vn, relBase, sections, instId, dur, label) {
+  const lines = [];
+  lines.push(`% ${'─'.repeat(52)}`);
+  lines.push(`% ${label}`);
+  lines.push(`% ${'─'.repeat(52)}`);
+  lines.push(`${vn} = \\relative ${relBase} {`);
+  if (sections.length === 0) {
+    lines.push("  % セクションを追加してください");
+  } else {
+    let totalBar = 1;
+    for (const sec of sections) {
+      const plays = sec.insts.has(instId);
+      lines.push(`  % --- ${sec.name} (${sec.bars}小節) ---`);
+      lines.push(`  \\mark \\markup { \\box "${escQ(sec.name)}" }`);
+      if (plays) {
+        for (let b = 0; b < sec.bars; b++) {
+          lines.push(`  r${dur} | % ${totalBar + b}`);
+        }
+      } else {
+        lines.push(`  R${dur}*${sec.bars} % 休止`);
+      }
+      totalBar += sec.bars;
+      lines.push("");
+    }
+  }
+  lines.push("}");
+  return lines;
+}
+
+function generateScore(S) {
+  const lines = [];
+  const dur = getMeasureDur(S.timeNum, S.timeDen);
+
+  // Header
+  lines.push(`\\version "${escQ(S.lilyVersion || "2.20.0")}"`);
+  lines.push("");
+  lines.push("\\header {");
+  lines.push(`  title = "${escQ(S.title)}"`);
+  if (S.composer) lines.push(`  composer = "${escQ(S.composer)}"`);
+  lines.push('  tagline = ""');
+  lines.push("}");
+  lines.push("");
+
+  // Global
+  lines.push("global = {");
+  lines.push(`  \\key ${S.keyNote} \\${S.keyMode}`);
+  lines.push(`  \\time ${S.timeNum}/${S.timeDen}`);
+  if (S.tempoText && S.tempoBpm) {
+    lines.push(`  \\tempo "${escQ(S.tempoText)}" ${S.tempoUnit} = ${S.tempoBpm}`);
+  } else if (S.tempoBpm) {
+    lines.push(`  \\tempo ${S.tempoUnit} = ${S.tempoBpm}`);
+  }
+  lines.push("}");
+  lines.push("");
+
+  // Music variables
+  for (const inst of S.instruments) {
+    const vn = varName(inst);
+    if (inst.grand) {
+      const rhLines = generateMusicVar(vn + "RH", "c''", S.sections, inst.id, dur, inst.name + " 右手 (RH)");
+      const lhLines = generateMusicVar(vn + "LH", "c,",  S.sections, inst.id, dur, inst.name + " 左手 (LH)");
+      lines.push(...rhLines);
+      lines.push("");
+      lines.push(...lhLines);
+    } else {
+      const rel = CLEF_REL[inst.clef] || "c'";
+      lines.push(...generateMusicVar(vn, rel, S.sections, inst.id, dur, inst.name));
+    }
+    lines.push("");
+  }
+
+  // Score
+  lines.push("\\score {");
+  if (S.instruments.length === 0) {
+    lines.push("  % 楽器を追加してください");
+  } else {
+    lines.push("  \\new StaffGroup <<");
+    for (const inst of S.instruments) {
+      const vn = varName(inst);
+      if (inst.grand) {
+        lines.push(`    \\new PianoStaff \\with {`);
+        lines.push(`      instrumentName = "${escQ(inst.name)}"`);
+        lines.push(`      shortInstrumentName = "${escQ(inst.abbr)}"`);
+        lines.push(`    } <<`);
+        lines.push(`      \\new Staff { \\clef treble \\global \\${vn}RH }`);
+        lines.push(`      \\new Staff { \\clef bass  \\global \\${vn}LH }`);
+        lines.push(`    >>`);
+      } else {
+        const clef = inst.clef === "tenor" ? '"tenor"' : inst.clef;
+        lines.push(`    \\new Staff \\with {`);
+        lines.push(`      instrumentName = "${escQ(inst.name)}"`);
+        lines.push(`      shortInstrumentName = "${escQ(inst.abbr)}"`);
+        lines.push(`    } {`);
+        lines.push(`      \\clef ${clef}`);
+        if (inst.trans) {
+          lines.push(`      \\transposition ${inst.trans}`);
+        }
+        lines.push(`      \\global`);
+        lines.push(`      \\${vn}`);
+        lines.push(`    }`);
+      }
+    }
+    lines.push("  >>");
+  }
+  lines.push("  \\layout {");
+  if (S.removeEmpty) {
+    lines.push("    \\context {");
+    lines.push("      \\Staff");
+    lines.push("      \\RemoveEmptyStaves");
+    if (S.removeFirst) {
+      lines.push("      \\override VerticalAxisGroup.remove-first = ##t");
+    }
+    lines.push("    }");
+  }
+  lines.push("  }");
+  lines.push("  \\midi { }");
+  lines.push("}");
+
+  return lines.join("\n");
+}
+
+// ============================================================
+// SYNTAX HIGHLIGHT (simple regex-based)
+// ============================================================
+function highlight(code) {
+  return code
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/(%.+)/g, '<span class="lp-comment">$1</span>')
+    .replace(/("(?:[^"\\]|\\.)*")/g, '<span class="lp-string">$1</span>')
+    .replace(/\\(version|header|score|layout|midi|key|time|tempo|clef|relative|new|set|mark|markup|box|transposition|RemoveEmptyStaves|compressMMRests)\b/g,
+      '<span class="lp-cmd">\\$1</span>')
+    .replace(/\\(major|minor|StaffGroup|Staff|PianoStaff|Voice)\b/g,
+      '<span class="lp-keyword">\\$1</span>')
+    .replace(/^([a-zA-Z][a-zA-Z0-9]*)(?=\s*=\s*[\\{])/gm,
+      '<span class="lp-variable">$1</span>');
+}
+
+// ============================================================
+// UI RENDERING
+// ============================================================
+// ============================================================
+// DIRTY STATE (manual edit tracking)
+// ============================================================
+let codeDirty = false;
+
+function markDirty() {
+  if (codeDirty) return;
+  codeDirty = true;
+  document.getElementById('dirtyBanner').style.display = 'flex';
+}
+
+function regenerate() {
+  codeDirty = false;
+  document.getElementById('dirtyBanner').style.display = 'none';
+  renderCode();
+}
+
+function getCode() {
+  return document.getElementById('codeOutput').value;
+}
+
+function renderCode() {
+  if (codeDirty) return;
+  const code = generateScore(S);
+  const lines = code.split("\n").length;
+  document.getElementById("codeStats").textContent =
+    `${lines} 行 / 楽器 ${S.instruments.length} / セクション ${S.sections.length}`;
+  document.getElementById("codeOutput").value = code;
+}
+
+function render() {
+  renderSettings();
+  renderCode();
+}
+
+function renderSettings() {
+  const el = document.getElementById("settings");
+  el.innerHTML = `
+    ${boxHTML("基本情報", `
+      <div class="field-row">
+        <label>タイトル</label>
+        <input type="text" value="${esc(S.title)}" oninput="S.title=this.value;renderCode()">
+      </div>
+      <div class="field-row">
+        <label>作曲者</label>
+        <input type="text" value="${esc(S.composer)}" oninput="S.composer=this.value;renderCode()" placeholder="（省略可）">
+      </div>
+      <div class="field-row">
+        <label>LilyPond Ver.</label>
+        <input type="text" value="${esc(S.lilyVersion)}" oninput="S.lilyVersion=this.value;renderCode()" style="width:90px" placeholder="2.20.0">
+      </div>
+    `)}
+    ${boxHTML("調・拍子・テンポ", `
+      <div class="field-row">
+        <label>調（Key）</label>
+        <select onchange="S.keyNote=this.value;render()">
+          ${KEY_OPTIONS.map(k=>`<option value="${k.v}" ${S.keyNote===k.v?"selected":""}>${k.l}</option>`).join("")}
+        </select>
+        <select onchange="S.keyMode=this.value;render()">
+          <option value="major" ${S.keyMode==="major"?"selected":""}>長調 (major)</option>
+          <option value="minor" ${S.keyMode==="minor"?"selected":""}>短調 (minor)</option>
+        </select>
+      </div>
+      <div class="field-row">
+        <label>拍子</label>
+        <input type="number" min="1" max="32" value="${S.timeNum}" style="width:50px"
+          oninput="S.timeNum=+this.value||4;renderCode()">
+        <span style="font-size:18px;color:#8b949e">/</span>
+        <select onchange="S.timeDen=+this.value;render()" style="width:60px">
+          ${[2,4,8,16].map(d=>`<option value="${d}" ${S.timeDen===d?"selected":""}>${d}</option>`).join("")}
+        </select>
+      </div>
+      <div class="field-row">
+        <label>テンポ記号</label>
+        <input type="text" value="${esc(S.tempoText)}" oninput="S.tempoText=this.value;renderCode()" placeholder="Allegro 等">
+      </div>
+      <div class="field-row">
+        <label>BPM</label>
+        <select onchange="S.tempoUnit=+this.value;render()" style="width:70px">
+          ${[4,2,8].map(u=>`<option value="${u}" ${S.tempoUnit===u?"selected":""}>${u===4?"♩=":u===2?"𝅗𝅥=":"♪="}</option>`).join("")}
+        </select>
+        <input type="number" min="20" max="400" value="${S.tempoBpm}" style="width:70px"
+          oninput="S.tempoBpm=+this.value||100;renderCode()">
+      </div>
+    `)}
+    ${boxHTML("レイアウト", `
+      <div class="field-row">
+        <label style="min-width:0;flex:1">
+          <input type="checkbox" ${S.removeEmpty?"checked":""} onchange="S.removeEmpty=this.checked;renderCode()">
+          空パートを非表示 <span style="color:#8b949e;font-size:11px">(\\RemoveEmptyStaves)</span>
+        </label>
+      </div>
+      <div class="field-row" style="${S.removeEmpty?"":"opacity:.35;pointer-events:none"}">
+        <label style="min-width:0;flex:1">
+          <input type="checkbox" ${S.removeFirst?"checked":""} onchange="S.removeFirst=this.checked;renderCode()" ${S.removeEmpty?"":"disabled"}>
+          1段目から非表示
+          <span style="color:#8b949e;font-size:11px">(remove-first)</span>
+        </label>
+      </div>
+    `)}
+    ${boxHTML("楽器", renderInstruments())}
+    ${boxHTML("セクション", renderSections(), `<button class="btn-primary btn-small" onclick="addSection()" style="font-weight:500;font-size:11px;padding:2px 8px">＋</button>`)}
+  `;
+}
+
+function boxHTML(title, body, headerBtn = '') {
+  return `<div class="section-box"><h3 style="display:flex;align-items:center;justify-content:space-between">${title}${headerBtn}</h3><div class="section-body">${body}</div></div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function renderInstruments() {
+  const items = S.instruments.map(inst => `
+    <div class="inst-item" data-id="${inst.id}">
+      <span class="drag-handle" title="ドラッグで並び替え">⋮⋮</span>
+      <input type="text" value="${esc(inst.name)}"
+        oninput="getInst(${inst.id}).name=this.value;renderCode()"
+        style="flex:1">
+      <input type="text" value="${esc(inst.abbr)}" placeholder="略称"
+        oninput="getInst(${inst.id}).abbr=this.value;renderCode()"
+        style="width:55px">
+      <button class="btn-danger" onclick="removeInstrument(${inst.id})">✕</button>
+    </div>
+  `).join("");
+
+  const presetOptions = INST_PRESETS.map(p =>
+    p.sep ? `<option disabled>── ${p.sep} ──</option>`
+          : `<option value='${JSON.stringify({n:p.n,c:p.c,v:p.v,a:p.a,trans:p.trans||null,grand:!!p.grand,custom:!!p.custom})}'>${p.n}</option>`
+  ).join("");
+
+  return `
+    <div class="inst-list" id="instList">${items || '<span style="color:#8b949e;font-size:12px">楽器がありません</span>'}</div>
+    <div class="add-inst-row">
+      <select id="presetSel">${presetOptions}</select>
+      <button class="btn-primary btn-small" onclick="addPreset()">+ 追加</button>
+    </div>
+  `;
+}
+
+function addPreset() {
+  const sel = document.getElementById("presetSel");
+  if (!sel.value) return;
+  try { addInstrument(JSON.parse(sel.value)); } catch(e) {}
+}
+
+function getInst(id) { return S.instruments.find(i => i.id === id); }
+function getSec(id)  { return S.sections.find(s => s.id === id); }
+
+function renderSections() {
+  if (S.instruments.length === 0) {
+    return '<span style="color:#8b949e;font-size:12px">先に楽器を追加してください</span>';
+  }
+  const items = S.sections.map(sec => {
+    const chips = S.instruments.map(inst => {
+      const active = sec.insts.has(inst.id);
+      return `<span class="sec-inst-chip ${active?"active":""}"
+        onclick="toggleInstInSection(${sec.id},${inst.id})">${esc(inst.abbr||inst.name)}</span>`;
+    }).join("");
+    return `
+      <div class="sec-item">
+        <div class="sec-header">
+          <input type="text" value="${esc(sec.name)}" style="width:50px"
+            oninput="getSec(${sec.id}).name=this.value;renderCode()">
+          <input type="number" class="bars-input" min="1" max="999" value="${sec.bars}"
+            oninput="getSec(${sec.id}).bars=+this.value||1;renderCode()"
+            title="小節数">
+          <span>小節</span>
+          <button class="btn-danger" style="margin-left:auto" onclick="removeSection(${sec.id})">✕</button>
+        </div>
+        <div class="sec-insts">${chips}</div>
+      </div>
+    `;
+  }).join("");
+
+  return `
+    <div class="section-list">${items || '<span style="color:#8b949e;font-size:12px">セクションがありません</span>'}</div>
+  `;
+}
+
+// ============================================================
+// DRAG TO REORDER
+// ============================================================
+let dragSrc = null;
+document.addEventListener("dragstart", e => {
+  const item = e.target.closest(".inst-item");
+  if (!item) return;
+  dragSrc = +item.dataset.id;
+  e.dataTransfer.effectAllowed = "move";
+});
+document.addEventListener("dragover", e => {
+  const item = e.target.closest(".inst-item");
+  if (!item || !dragSrc) return;
+  e.preventDefault();
+  const targetId = +item.dataset.id;
+  if (targetId === dragSrc) return;
+  const si = S.instruments.findIndex(i => i.id === dragSrc);
+  const ti = S.instruments.findIndex(i => i.id === targetId);
+  const moved = S.instruments.splice(si, 1)[0];
+  S.instruments.splice(ti, 0, moved);
+  render();
+});
+document.addEventListener("dragend", () => { dragSrc = null; });
+document.addEventListener("mousedown", e => {
+  const handle = e.target.closest(".drag-handle");
+  const item = handle?.closest(".inst-item");
+  if (item) item.draggable = true;
+  else document.querySelectorAll(".inst-item").forEach(el => el.draggable = false);
+});
+
+// ============================================================
+// COMPILE / PREVIEW
+// ============================================================
+const SERVER = 'http://localhost:7890';
+
+async function checkServer() {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 2000);
+    const r = await fetch(SERVER + '/ping', {signal: ctrl.signal});
+    clearTimeout(t);
+    setServerDot(r.ok);
+  } catch {
+    setServerDot(false);
+  }
+}
+
+function setServerDot(ok) {
+  document.getElementById('serverDot').className = 'server-dot ' + (ok ? 'ok' : 'ng');
+  document.getElementById('serverLabel').textContent = ok ? 'サーバー接続中' : 'サーバー未起動';
+}
+
+function switchTab(t) {
+  const isCode = t === 'code';
+  document.getElementById('codeOutput').style.display = isCode ? 'block' : 'none';
+  document.getElementById('dirtyBanner').style.display = isCode && codeDirty ? 'flex' : 'none';
+  document.getElementById('previewPane').style.display = isCode ? 'none' : '';
+  document.getElementById('tabCode').classList.toggle('active', isCode);
+  document.getElementById('tabPreview').classList.toggle('active', !isCode);
+}
+
+let compiling = false;
+async function compile() {
+  if (compiling) return;
+  compiling = true;
+  const btn = document.getElementById('compileBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ コンパイル中...';
+  switchTab('preview');
+  document.getElementById('previewErrors').innerHTML = '';
+  document.getElementById('previewSvgs').innerHTML =
+    '<div style="padding:24px;color:#8b949e;font-size:13px">コンパイル中...</div>';
+
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 65000);
+    const res = await fetch(SERVER + '/compile', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({code: getCode()}),
+      signal: ctrl.signal,
+    });
+    clearTimeout(t);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const d = await res.json();
+
+    // Errors / warnings
+    const cleaned = (d.stderr || '')
+      .replace(/Processing `[^']*'/g, '')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+    document.getElementById('previewErrors').innerHTML =
+      cleaned ? `<div class="error-box">${esc(cleaned)}</div>` : '';
+
+    // SVGs
+    const svgEl = document.getElementById('previewSvgs');
+    if (d.svgs && d.svgs.length) {
+      svgEl.innerHTML = d.svgs.map(svgStr => {
+        const tmp = document.createElement('div');
+        tmp.innerHTML = svgStr;
+        const s = tmp.querySelector('svg');
+        if (s) { s.removeAttribute('width'); s.removeAttribute('height'); }
+        return `<div class="preview-svg">${tmp.innerHTML}</div>`;
+      }).join('');
+    } else {
+      svgEl.innerHTML =
+        '<div style="padding:20px;color:#f85149;font-size:13px">SVG が生成されませんでした — エラーを確認してください</div>';
+    }
+    setServerDot(true);
+    btn.textContent = d.success ? '▶ コンパイル' : '▶ コンパイル (エラー)';
+  } catch {
+    setServerDot(false);
+    document.getElementById('previewSvgs').innerHTML =
+      `<div style="padding:24px;color:#f85149;font-size:14px;line-height:2">
+        サーバーに接続できません。<br>
+        ターミナルで次のコマンドを実行してください:<br>
+        <code style="background:#21262d;padding:3px 10px;border-radius:4px;font-size:13px">python3 lilypond-server.py</code>
+      </div>`;
+    btn.textContent = '▶ コンパイル';
+  }
+  compiling = false;
+  btn.disabled = false;
+}
+
+checkServer();
+setInterval(checkServer, 8000);
+
+// ============================================================
+// COPY / DOWNLOAD
+// ============================================================
+function copyCode() {
+  navigator.clipboard.writeText(getCode()).then(() => showToast("コピーしました"));
+}
+
+function downloadFile() {
+  const code = getCode();
+  const name = (S.title || "template").replace(/[^\w　-鿿]/g,"_") + ".ly";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([code], {type:"text/plain"}));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showToast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1800);
+}
+
+// ============================================================
+// EDITOR SETUP
+// ============================================================
+document.addEventListener('DOMContentLoaded', () => {
+  const ta = document.getElementById('codeOutput');
+  ta.addEventListener('input', markDirty);
+  ta.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    e.preventDefault();
+    const s = ta.selectionStart, end = ta.selectionEnd;
+    ta.value = ta.value.slice(0, s) + '  ' + ta.value.slice(end);
+    ta.selectionStart = ta.selectionEnd = s + 2;
+    markDirty();
+  });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+render();
+</script>
+</body>
+</html>

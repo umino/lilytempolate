@@ -1,0 +1,14 @@
+# LilyPond source files
+*.ly
+
+# LilyPond output
+*.pdf
+*.midi
+*.mid
+*.ps
+*.eps
+*.png
+
+# Python
+__pycache__/
+*.pyc

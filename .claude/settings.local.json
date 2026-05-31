@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(lilypond --version)",
+      "Bash(lilypond *)",
+      "Bash(open /Users/umino/Music/claude/lilypond-template.html)"
+    ]
+  }
+}
