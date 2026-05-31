@@ -49,7 +49,7 @@ header h1{font-size:16px;font-weight:600;color:#f0f6fc}
 /* Sections */
 .section-list{display:flex;flex-direction:column;gap:6px}
 .sec-item{background:#21262d;border:1px solid #30363d;border-radius:6px;overflow:hidden}
-.sec-header{display:flex;align-items:center;gap:8px;padding:6px 10px;background:#161b22}
+.sec-header{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:6px 10px;background:#161b22}
 .sec-header input[type=text]{width:60px;font-size:12px;padding:2px 6px}
 .sec-header .bars-input{width:55px}
 .sec-header span{font-size:11px;color:#8b949e}
@@ -252,6 +252,8 @@ function addSection() {
     name: names[idx % names.length] || String(idx+1),
     bars: 8,
     repeat: false,
+    timeNum: null,
+    timeDen: null,
     insts: new Set(S.instruments.map(i => i.id)),
   });
   render();
@@ -267,6 +269,30 @@ function toggleInstInSection(secId, instId) {
   if (!sec) return;
   if (sec.insts.has(instId)) sec.insts.delete(instId);
   else sec.insts.add(instId);
+  render();
+}
+
+// このセクション位置で継承される実効拍子を求める（global + 先行セクションのオーバーライド）
+function effectiveTime(secId) {
+  let num = S.timeNum, den = S.timeDen;
+  for (const s of S.sections) {
+    if (s.id === secId) break;
+    if (s.timeNum && s.timeDen) { num = s.timeNum; den = s.timeDen; }
+  }
+  return {num, den};
+}
+
+function toggleSecTime(secId, on) {
+  const sec = S.sections.find(s => s.id === secId);
+  if (!sec) return;
+  if (on) {
+    const {num, den} = effectiveTime(secId);
+    sec.timeNum = num;
+    sec.timeDen = den;
+  } else {
+    sec.timeNum = null;
+    sec.timeDen = null;
+  }
   render();
 }
 
@@ -299,7 +325,7 @@ function clefStr(clef) {
   return "treble";
 }
 
-function generateMusicVar(vn, relBase, sections, instId, dur, label) {
+function generateMusicVar(vn, relBase, sections, instId, baseNum, baseDen, label) {
   const lines = [];
   lines.push(`% ${'─'.repeat(52)}`);
   lines.push(`% ${label}`);
@@ -309,10 +335,18 @@ function generateMusicVar(vn, relBase, sections, instId, dur, label) {
     lines.push("  % セクションを追加してください");
   } else {
     let totalBar = 1;
+    let curNum = baseNum, curDen = baseDen;
     for (const sec of sections) {
       const plays = sec.insts.has(instId);
       const ind = sec.repeat ? "    " : "  ";
       lines.push(`  % --- ${sec.name} (${sec.bars}小節${sec.repeat ? "・繰り返し" : ""}) ---`);
+      // 拍子オーバーライド: 設定があり現在の拍子と異なるときだけ \time を出力
+      if (sec.timeNum && sec.timeDen && (sec.timeNum !== curNum || sec.timeDen !== curDen)) {
+        curNum = sec.timeNum;
+        curDen = sec.timeDen;
+        lines.push(`  \\time ${curNum}/${curDen}`);
+      }
+      const dur = getMeasureDur(curNum, curDen);
       lines.push(`  \\mark \\markup { \\box "${escQ(sec.name)}" }`);
       if (sec.repeat) lines.push("  \\repeat volta 2 {");
       if (plays) {
@@ -333,7 +367,6 @@ function generateMusicVar(vn, relBase, sections, instId, dur, label) {
 
 function generateScore(S) {
   const lines = [];
-  const dur = getMeasureDur(S.timeNum, S.timeDen);
 
   // Header
   lines.push(`\\version "${escQ(S.lilyVersion || "2.20.0")}"`);
@@ -361,14 +394,14 @@ function generateScore(S) {
   for (const inst of S.instruments) {
     const vn = varName(inst);
     if (inst.grand) {
-      const rhLines = generateMusicVar(vn + "RH", "c''", S.sections, inst.id, dur, inst.name + " 右手 (RH)");
-      const lhLines = generateMusicVar(vn + "LH", "c,",  S.sections, inst.id, dur, inst.name + " 左手 (LH)");
+      const rhLines = generateMusicVar(vn + "RH", "c''", S.sections, inst.id, S.timeNum, S.timeDen, inst.name + " 右手 (RH)");
+      const lhLines = generateMusicVar(vn + "LH", "c,",  S.sections, inst.id, S.timeNum, S.timeDen, inst.name + " 左手 (LH)");
       lines.push(...rhLines);
       lines.push("");
       lines.push(...lhLines);
     } else {
       const rel = CLEF_REL[inst.clef] || "c'";
-      lines.push(...generateMusicVar(vn, rel, S.sections, inst.id, dur, inst.name));
+      lines.push(...generateMusicVar(vn, rel, S.sections, inst.id, S.timeNum, S.timeDen, inst.name));
     }
     lines.push("");
   }
@@ -615,6 +648,19 @@ function renderSections() {
             <input type="checkbox" ${sec.repeat?"checked":""}
               onchange="getSec(${sec.id}).repeat=this.checked;renderCode()">⟲ 反復
           </label>
+          <label style="font-size:11px;color:#8b949e;display:flex;align-items:center;gap:3px;cursor:pointer" title="このセクションで拍子を変更">
+            <input type="checkbox" ${sec.timeNum?"checked":""}
+              onchange="toggleSecTime(${sec.id},this.checked)">拍子
+          </label>
+          ${sec.timeNum ? `
+          <span style="display:flex;align-items:center;gap:3px">
+            <input type="number" min="1" max="32" value="${sec.timeNum}" style="width:42px"
+              oninput="getSec(${sec.id}).timeNum=+this.value||4;renderCode()">
+            <span>/</span>
+            <select onchange="getSec(${sec.id}).timeDen=+this.value;renderCode()" style="width:48px">
+              ${[2,4,8,16].map(d=>`<option value="${d}" ${sec.timeDen===d?"selected":""}>${d}</option>`).join("")}
+            </select>
+          </span>` : ""}
           <button class="btn-danger" style="margin-left:auto" onclick="removeSection(${sec.id})">✕</button>
         </div>
         <div class="sec-insts">${chips}</div>
