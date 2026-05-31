@@ -94,6 +94,10 @@ header h1{font-size:16px;font-weight:600;color:#f0f6fc}
 <header>
   <h1>LilyPond テンプレート生成</h1>
   <div class="header-actions">
+    <button class="btn-secondary btn-small" onclick="exportSettings()" title="現在の設定を .json として保存">設定を保存</button>
+    <button class="btn-secondary btn-small" onclick="document.getElementById('importFile').click()" title="保存した設定を読み込む">設定を読込</button>
+    <input type="file" id="importFile" accept=".json,application/json" style="display:none" onchange="importSettings(this)">
+    <span style="width:1px;height:18px;background:#30363d;margin:0 2px"></span>
     <button class="btn-secondary btn-small" onclick="downloadFile()">ダウンロード (.ly)</button>
     <button class="btn-primary btn-small" onclick="copyCode()">コピー</button>
   </div>
@@ -765,6 +769,82 @@ function downloadFile() {
   a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+// ============================================================
+// SETTINGS SAVE / LOAD (JSON)
+// ============================================================
+const SETTINGS_VERSION = 1;
+
+function serializeState() {
+  return {
+    settingsVersion: SETTINGS_VERSION,
+    title: S.title, composer: S.composer, lilyVersion: S.lilyVersion,
+    keyNote: S.keyNote, keyMode: S.keyMode,
+    timeNum: S.timeNum, timeDen: S.timeDen,
+    tempoText: S.tempoText, tempoUnit: S.tempoUnit, tempoBpm: S.tempoBpm,
+    removeEmpty: S.removeEmpty, removeFirst: S.removeFirst,
+    instruments: S.instruments.map(i => ({...i})),
+    // Set はそのままでは JSON 化できないため配列に変換
+    sections: S.sections.map(s => ({...s, insts: Array.from(s.insts)})),
+  };
+}
+
+function loadState(d) {
+  S = {
+    title: d.title ?? "無題",
+    composer: d.composer ?? "",
+    lilyVersion: d.lilyVersion ?? "2.20.0",
+    keyNote: d.keyNote ?? "c",
+    keyMode: d.keyMode ?? "major",
+    timeNum: d.timeNum ?? 4,
+    timeDen: d.timeDen ?? 4,
+    tempoText: d.tempoText ?? "Moderato",
+    tempoUnit: d.tempoUnit ?? 4,
+    tempoBpm: d.tempoBpm ?? 100,
+    instruments: (d.instruments || []).map(i => ({...i})),
+    sections: (d.sections || []).map(s => ({...s, insts: new Set(s.insts || [])})),
+    removeEmpty: d.removeEmpty ?? true,
+    removeFirst: d.removeFirst ?? false,
+  };
+  // id 重複を防ぐため uid カウンタを既存の最大値の次に進める
+  let maxId = 0;
+  S.instruments.forEach(i => { if (i.id > maxId) maxId = i.id; });
+  S.sections.forEach(s => { if (s.id > maxId) maxId = s.id; });
+  uid = maxId + 1;
+  // 手動編集状態はリセット
+  codeDirty = false;
+  document.getElementById('dirtyBanner').style.display = 'none';
+  render();
+}
+
+function exportSettings() {
+  const json = JSON.stringify(serializeState(), null, 2);
+  const name = (S.title || "settings").replace(/[^\w　-鿿]/g, "_") + ".json";
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([json], {type:"application/json"}));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast("設定を保存しました");
+}
+
+function importSettings(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const d = JSON.parse(reader.result);
+      if (typeof d !== "object" || d === null) throw new Error("invalid");
+      loadState(d);
+      showToast("設定を読み込みました");
+    } catch (e) {
+      showToast("読み込みに失敗しました（不正なファイル）");
+    }
+    input.value = "";  // 同じファイルを連続で選べるようリセット
+  };
+  reader.readAsText(file);
 }
 
 function showToast(msg) {
